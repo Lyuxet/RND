@@ -9,8 +9,8 @@ from domain import clear
 class NginxManager:
 
     def __init__(self):
-        self.path = Path("/etc/nginx/etc/nginx/sites-available")
-        self.template_path = Path(__file__).parent / "nginx_template.conf"
+        self.path = Path("/etc/nginx/sites-available")
+        self.template_path = Path("nginx_template.conf")
 
     def create_nginx_file(self, domain: str):
         clear()
@@ -86,7 +86,7 @@ class NginxManager:
         if status["nginx"]:
             return True
         
-        if not self.run_command(["apt", "install", "nginx", "-Y"]):
+        if not self.run_command(["apt", "install", "nginx"]):
             return False
 
         if not self.run_command([

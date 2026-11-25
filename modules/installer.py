@@ -204,7 +204,7 @@ class NodeInstaller:
 
     def create_nginx_file(self):
         nginx = NginxManager()
-        domain = self.config["doamin"]
+        domain = self.config["domain"]
 
         if nginx.create_nginx_file(domain=domain):
             print("\n[OK] Конфигурационный файл NGINX успешно создан\n")

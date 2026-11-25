@@ -14,3 +14,7 @@ services:
     environment:
       - NODE_PORT=2222
       - SECRET_KEY="" 
+    volumes:
+      - /dev/shm:/dev/shm:rw
+      - ./fullchain.pem:/var/lib/remnawave/configs/xray/ssl/cert.pem:ro
+      - ./privkey.key:/var/lib/remnawave/configs/xray/ssl/cert.key:ro

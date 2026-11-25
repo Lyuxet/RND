@@ -84,7 +84,6 @@ class SertificateManager:
             print("[ERROR] acme.sh not found")
             return False
 
-
         path_key = "/opt/rem/privkey.key"
         path_fullchain = "/opt/rem/fullchain.pem"
 
@@ -96,7 +95,8 @@ class SertificateManager:
             "--key-file", path_key,
             "--fullchain-file", path_fullchain,
             "--alpn",
-            "--tlsport", "8443"
+            "--tlsport", "8443",
+            "--force"
         ]
 
         try:
