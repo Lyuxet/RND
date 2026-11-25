@@ -42,36 +42,36 @@ class NodeInstaller:
             print("[OK] Disk space")
 
         if shutil.which("docker"):
-            print("[OK] Docker installed")
+            print("[OK] Docker установлен")
         else:
-            print("[INFO] Docker not installed")
+            print("[INFO] Docker не установлен")
 
         if shutil.which("nginx"):
-            print("[OK] Nginx installed")
+            print("[OK] Nginx установлен")
         else:
-            print("[INFO] Nginx not installed")
+            print("[INFO] Nginx не установлен")
 
         return True
 
     def get_configuration(self):
 
-        print("\n[ NODE CONFIGURATION ]\n")
+        print("\n[ КОНФИГУРАЦИЯ НОДЫ ]\n")
         print("\nВыйти в меню Ctrl+C")
 
         try:
 
             while True:
-                ip = input("Server IP: ").strip()
+                ip = input("IP сервера: ").strip()
 
                 try:
                     socket.inet_pton(socket.AF_INET, ip)
                     break
                 except OSError:
-                    print("[ERROR] Invalid IPv4 address.")
+                    print("[ERROR] Ошибка ввода IPV4.")
 
 
             while True:
-                domain = input("Node domain: ").strip().lower()
+                domain = input("Домен ноды: ").strip().lower()
 
                 if re.fullmatch(
                     r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}",
@@ -79,17 +79,17 @@ class NodeInstaller:
                 ):
                     break
 
-                print("[ERROR] Invalid domain.")
+                print("[ERROR] Ошибка ввода домена.")
 
             while True:
-                port = input("Node port [443]: ").strip() or "443"
+                port = input("Node порт [443]: ").strip() or "443"
 
                 if port.isdigit() and 1 <= int(port) <= 65535:
                     break
 
-                print("[ERROR] Invalid port.")
+                print("[ERROR] Ошибка ввода порта.")
 
-            print("\n[ PROTOCOL SELECTION ]\n")
+            print("\n[ ВЫБЕРЕТЕ ПРОТОКОЛ ]\n")
 
             print("[1] VLESS TCP")
             print("[2] Hysteria")
@@ -101,7 +101,7 @@ class NodeInstaller:
                 if protocol in ["1", "2", "3"]:
                     break
 
-                print("[ERROR] Invalid selection.")
+                print("[ERROR] Ошибка ввода.")
 
             protocols = {
                 "1": ["vless_tcp"],
@@ -123,7 +123,7 @@ class NodeInstaller:
         clear()
 
         print("\n" + "=" * 45)
-        print("       INSTALLATION CONFIGURATION")
+        print("       КОНФИГУРАЦИЯ УСТАНОВКИ")
         print("=" * 45)
 
         print(f"Server IP:  {self.config['ip']}")
@@ -137,13 +137,13 @@ class NodeInstaller:
 
         print("=" * 45)
 
-        confirm = input("\nContinue? [y/N]: ").strip().lower()
+        confirm = input("\Продолжить? [y/N]: ").strip().lower()
 
         return confirm == "y"
 
     def run(self):
 
-        print("\nStarting Remnawave Node installer...")
+        print("\nСтарт установщика Remnawave Node...")
 
         if not self.check_system():
             return
@@ -158,47 +158,47 @@ class NodeInstaller:
             print("\nInstallation cancelled.")
             return
 
-        print("\n[OK] Configuration accepted.")
+        print("\n[OK] Кофнигурация принята.")
 
         if not self.install_docker():
-            print("\n[ERROR] Cannot continue without Docker.")
+            print("\n[ERROR] Не возможно продолжить без DOCKER\n")
             return
 
         if not self.install_sertificate():
-            print("\n[ERROR] Произошла ошбика во время установки CRON, SOCAT and ACME\n")
+            print("\n[ERROR] Не возможно продолжить без CRON, SOCAT and ACME\n")
             return
 
         if not self.issue_sertificate():
-            print(f"\n[ERROR] Не удалось выпустить сертификаты\n")
+            print(f"\n[ERROR] Не возможно продолжить без выпуска сертификатов\n")
             return
  
         
         if not self.install_nginx():
-            print("\n[ERROR] Cannot continue without Docker.")
+            print("\n[ERROR] Невозможно продолжить без NGINX\n")
             return
 
         if not self.create_nginx_file():
-            print("\n[ERROR] Ошибка создания конфигурационного файла NGINX\ns")
+            print("\n[ERROR] Не возможно продолжить без конфигурационного файла NGINX\n")
             return
 
 
         if not self.create_node():
-            print("\n[ERROR] Не удалось создать ноду Remnawave\n")
+            print("\n[ERROR] Не возможно продолжить без ноды в Remnawave\n")
             return
 
         secret_key = self.get_secret_key_node()
 
         if not secret_key:
-            print("\n[ERROR] Не удалось получить ключ ноды Remnawave\n")
+            print("\n[ERROR] Не возможно продолжить без ключа ноды Remnawave\n")
             return
         
 
         if not self.docker_up_node(secret_key=secret_key):
-            print("\n[ERROR] Не удалось поднять ноду в Docker\n")
+            print("\n[ERROR] Не возможно продолжить без ноды в Docker\n")
             return
 
         
-        print("\n[SUCCESS] Server is ready for Node deployment.")
+        print("\n[SUCCESS] Сервер готов к работе\n")
         return
 
 
@@ -233,13 +233,11 @@ class NodeInstaller:
 
         docker = DockerManager()
 
-        print("\nChecking Docker installation...\n")
-
         if docker.install():
-            print("\n[OK] Docker is ready.")
+            print("\n[OK] Docker УСПЕШНО УСТАНОВЛЕН.")
             return True
 
-        print("\n[ERROR] Docker installation failed.")
+        print("\n[ERROR] Произошла ошибка во время установки Docker\n")
         return False
 
     
@@ -261,10 +259,10 @@ class NodeInstaller:
         nginx = NginxManager()
 
         if nginx.install():
-            print("\n[OK] Nginx is ready")
+            print("\n[OK] Nginx УСПЕШНО УСТАНОВЛЕН\n")
             return True
 
-        print("\n[ERROR] Nginx installation failed.")
+        print("\n[ERROR] Произошла ошибка во время установки Nginx\n")
         return False
 
 
