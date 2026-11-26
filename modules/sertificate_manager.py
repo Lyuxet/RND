@@ -1,6 +1,7 @@
 import subprocess
 import os
 from pathlib import Path
+import shutil
 
 from domain import clear
 
@@ -14,6 +15,9 @@ class SertificateManager:
         if os.geteuid() != 0:
             print("[ERROR] Run application as root.")
             return False
+
+        if self.check_install_cron() and self.check_install_socat() and self.check_install_acme():
+            return True
 
         if not self.run_command(["apt-get", "install", "cron", "socat"]):
             print("\n[ERROR] Не удалось установить CRON и SOCAT\n")
@@ -37,6 +41,15 @@ class SertificateManager:
                 return path
 
         return None
+
+    def check_install_socat(self):
+        return shutil.which("socat") is not None
+
+    def check_install_cron(self):
+        return shutil.which("cron") is not None
+
+    def check_install_acme(self):
+        return self.get_acme_path() is not None
 
         
     def run_command(self, command):
@@ -84,6 +97,11 @@ class SertificateManager:
             print("[ERROR] acme.sh not found")
             return False
 
+
+        base_dir = Path("/opt")
+        project_dir = base_dir / "rem"
+        project_dir.mkdir(parents=True, exist_ok=True)
+
         path_key = "/opt/rem/privkey.key"
         path_fullchain = "/opt/rem/fullchain.pem"
 
@@ -100,14 +118,7 @@ class SertificateManager:
         ]
 
         try:
-            result = subprocess.run(
-                command,
-                check=True,
-                capture_output=True,
-                text=True
-            )
-
-            print(result.stdout)
+            self.run_command(command=command)
             print(f"[SUCCESS] Certificate issued for {domain}")
             return True
 
