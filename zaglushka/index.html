@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="netpulse — сетевой монитор пропускной способности и сокетов с нулевым оверхедом для Linux и macOS на базе eBPF">
+  <title>netpulse — Анализ сетевой пропускной способности и интерфейсов в реальном времени</title>
+  <style>
+    :root {
+      /* Цветовая палитра Supabase */
+      --color-phosphor-green: #3ecf8e;
+      --color-mint-pulse: #00c573;
+      --color-forest-depth: #1f4b37;
+      --color-midnight-emerald: #006239;
+      --color-snow: #fafafa;
+      --color-silver-mist: #b4b4b4;
+      --color-smoke: #898989;
+      --color-graphite: #4d4d4d;
+      --color-slate: #393939;
+      --color-charcoal: #2e2e2e;
+      --color-ash: #242424;
+      --color-obsidian: #121212;
+      --color-terminal-bg: #0d0d0d;
+
+      /* Типографика */
+      --font-sans: 'Circular', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'Source Code Pro', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+      /* Радиусы скругления */
+      --radius-buttons: 9999px;
+      --radius-cards: 16px;
+      --radius-inputs: 8px;
+
+      /* Разметка */
+      --sidebar-width: 250px;
+      --page-max-width: 1200px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      background-color: var(--color-obsidian);
+    }
+
+    body {
+      background-color: var(--color-obsidian);
+      color: var(--color-snow);
+      font-family: var(--font-sans);
+      font-size: 16px;
+      font-weight: 400;
+      line-height: 1.5;
+      letter-spacing: -0.007em;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Верхняя панель навигации */
+    .top-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background-color: var(--color-obsidian);
+      border-bottom: 1px solid var(--color-charcoal);
+      height: 64px;
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      justify-content: space-between;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .brand-icon {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-phosphor-green);
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--color-snow);
+      letter-spacing: -0.007em;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .nav-links a.nav-item {
+      color: var(--color-silver-mist);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 400;
+      transition: color 0.15s ease;
+    }
+
+    .nav-links a.nav-item:hover {
+      color: var(--color-snow);
+    }
+
+    /* Кнопки-пилюли */
+    .pill-stars {
+      background-color: var(--color-ash);
+      border: 1px solid var(--color-charcoal);
+      border-radius: var(--radius-buttons);
+      color: var(--color-snow);
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 400;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .pill-stars:hover {
+      border-color: var(--color-slate);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--color-slate);
+      color: var(--color-snow);
+      padding: 8px 16px;
+      border-radius: var(--radius-buttons);
+      font-size: 14px;
+      font-weight: 400;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--color-graphite);
+      background-color: rgba(255, 255, 255, 0.04);
+    }
+
+    .btn-primary {
+      background-color: var(--color-phosphor-green);
+      border: 1px solid var(--color-phosphor-green);
+      color: var(--color-snow);
+      padding: 8px 18px;
+      border-radius: var(--radius-buttons);
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-primary:hover {
+      border-color: var(--color-forest-depth);
+      background-color: var(--color-mint-pulse);
+    }
+
+    .menu-toggle {
+      display: none;
+      background: none;
+      border: 1px solid var(--color-charcoal);
+      color: var(--color-snow);
+      padding: 6px 10px;
+      border-radius: var(--radius-inputs);
+      cursor: pointer;
+    }
+
+    /* Основная разметка контейнера */
+    .container {
+      display: flex;
+      max-width: var(--page-max-width);
+      margin: 0 auto;
+      width: 100%;
+      flex: 1;
+    }
+
+    /* Боковое меню навигации */
+    .sidebar {
+      width: var(--sidebar-width);
+      position: sticky;
+      top: 64px;
+      height: calc(100vh - 64px);
+      overflow-y: auto;
+      padding: 32px 16px 32px 24px;
+      border-right: 1px solid var(--color-charcoal);
+      flex-shrink: 0;
+    }
+
+    .sidebar-section-title {
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--color-smoke);
+      margin-bottom: 8px;
+      margin-top: 24px;
+    }
+
+    .sidebar-section-title:first-child {
+      margin-top: 0;
+    }
+
+    .sidebar-nav {
+      list-style: none;
+    }
+
+    .sidebar-nav li {
+      margin-bottom: 2px;
+    }
+
+    .sidebar-nav a {
+      display: block;
+      color: var(--color-silver-mist);
+      text-decoration: none;
+      padding: 7px 12px;
+      border-radius: var(--radius-buttons);
+      font-size: 14px;
+      font-weight: 400;
+      transition: all 0.15s ease;
+    }
+
+    .sidebar-nav a:hover {
+      color: var(--color-snow);
+      background-color: var(--color-ash);
+    }
+
+    .sidebar-nav a.active {
+      color: var(--color-phosphor-green);
+      background-color: rgba(62, 207, 142, 0.08);
+      font-weight: 500;
+    }
+
+    /* Контентная область */
+    .content {
+      flex: 1;
+      padding: 48px 32px 80px 48px;
+      max-width: 900px;
+      overflow-x: hidden;
+    }
+
+    /* Плашка анонса */
+    .announcement-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background-color: var(--color-ash);
+      border: 1px solid var(--color-charcoal);
+      border-radius: var(--radius-buttons);
+      padding: 6px 16px;
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--color-silver-mist);
+      margin-bottom: 24px;
+      text-decoration: none;
+    }
+
+    .announcement-pill span.dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--color-phosphor-green);
+    }
+
+    .announcement-pill:hover {
+      border-color: var(--color-slate);
+    }
+
+    /* Первый экран (Hero) */
+    .hero {
+      margin-bottom: 64px;
+    }
+
+    .hero h1 {
+      font-size: 46px;
+      font-weight: 400;
+      line-height: 1.18;
+      letter-spacing: -0.02em;
+      color: var(--color-snow);
+      margin-bottom: 16px;
+    }
+
+    .hero h1 .highlight {
+      color: var(--color-phosphor-green);
+    }
+
+    .hero p.lead {
+      font-size: 18px;
+      color: var(--color-silver-mist);
+      line-height: 1.5;
+      margin-bottom: 32px;
+      max-width: 680px;
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+
+    /* Строка быстрой установки */
+    .quick-install {
+      background: var(--color-terminal-bg);
+      border: 1px solid var(--color-charcoal);
+      border-radius: var(--radius-buttons);
+      padding: 8px 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      max-width: 560px;
+      width: 100%;
+    }
+
+    .install-cmd {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      letter-spacing: 0.05em;
+      color: var(--color-snow);
+      white-space: nowrap;
+      overflow-x: auto;
+    }
+
+    .install-cmd .prefix {
+      color: var(--color-smoke);
+      margin-right: 6px;
+      user-select: none;
+    }
+
+    .btn-copy {
+      background: var(--color-ash);
+      border: 1px solid var(--color-slate);
+      color: var(--color-silver-mist);
+      padding: 4px 14px;
+      border-radius: var(--radius-buttons);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    .btn-copy:hover {
+      color: var(--color-snow);
+      border-color: var(--color-graphite);
+    }
+
+    .btn-copy.copied {
+      background-color: var(--color-midnight-emerald);
+      border-color: var(--color-forest-depth);
+      color: var(--color-phosphor-green);
+    }
+
+    /* Секции */
+    section {
+      margin-bottom: 72px;
+      scroll-margin-top: 88px;
+    }
+
+    h2 {
+      font-size: 24px;
+      font-weight: 400;
+      letter-spacing: -0.015em;
+      color: var(--color-snow);
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--color-charcoal);
+    }
+
+    h3 {
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--color-snow);
+      margin: 24px 0 8px 0;
+    }
+
+    p {
+      color: var(--color-silver-mist);
+      font-size: 15px;
+      line-height: 1.55;
+      margin-bottom: 16px;
+    }
+
+    /* Окно терминала */
+    .terminal-card {
+      background: var(--color-terminal-bg);
+      border: 1px solid var(--color-charcoal);
+      border-radius: var(--radius-cards);
+      overflow: hidden;
+      margin: 20px 0 32px 0;
+    }
+
+    .terminal-header {
+      background: var(--color-obsidian);
+      border-bottom: 1px solid var(--color-charcoal);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .term-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .term-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--color-charcoal);
+      border: 1px solid var(--color-slate);
+    }
+
+    .terminal-title {
+      color: var(--color-smoke);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      margin-left: auto;
+      margin-right: auto;
+      letter-spacing: 0.05em;
+    }
+
+    .terminal-body {
+      padding: 20px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--color-silver-mist);
+      overflow-x: auto;
+      letter-spacing: 0.02em;
+    }
+
+    .t-green { color: var(--color-phosphor-green); }
+    .t-snow { color: var(--color-snow); }
+    .t-smoke { color: var(--color-smoke); }
+    .t-graphite { color: var(--color-graphite); }
+
+    /* Сетка возможностей (2x2) */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+      margin-top: 24px;
+    }
+
+    .feature-card {
+      background: var(--color-obsidian);
+      border: 1px solid var(--color-charcoal);
+      border-radius: var(--radius-cards);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: border-color 0.2s ease;
+    }
+
+    .feature-card:hover {
+      border-color: var(--color-graphite);
+    }
+
+    .feature-card-content {
+      margin-bottom: 20px;
+    }
+
+    .feature-card-icon {
+      width: 24px;
+      height: 24px;
+      stroke: var(--color-phosphor-green);
+      stroke-width: 1.5;
+      fill: none;
+      margin-bottom: 16px;
+    }
+
+    .feature-card h4 {
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--color-snow);
+      margin-bottom: 6px;
+    }
+
+    .feature-card p {
+      font-size: 14px;
+      color: var(--color-silver-mist);
+      line-height: 1.5;
+      margin-bottom: 0;
+    }
+
+    /* Контейнер схем и лайн-арта */
+    .card-wireframe {
+      background: var(--color-terminal-bg);
+      border: 1px solid var(--color-charcoal);
+      border-radius: 8px;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .wireframe-svg {
+      width: 100%;
+      height: 100%;
+      stroke: var(--color-graphite);
+      stroke-width: 1;
+    }
+
+    /* Табы установки */
+    .tabs-card {
+      background: var(--color-obsidian);
+      border: 1px solid var(--color-charcoal);
+      border-radius: var(--radius-cards);
+      overflow: hidden;
+      margin-top: 16px;
+    }
+
+    .tabs-header {
+      display: flex;
+      background: var(--color-terminal-bg);
+      border-bottom: 1px solid var(--color-charcoal);
+      padding: 4px 8px;
+      gap: 4px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      padding: 8px 16px;
+      color: var(--color-silver-mist);
+      font-size: 13px;
+      font-weight: 400;
+      border-radius: var(--radius-buttons);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .tab-btn:hover {
+      color: var(--color-snow);
+    }
+
+    .tab-btn.active {
+      color: var(--color-snow);
+      background-color: var(--color-ash);
+      font-weight: 500;
+    }
+
+    .tab-content {
+      padding: 16px;
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Блоки кода */
+    .code-box {
+      background: var(--color-terminal-bg);
+      border: 1px solid var(--color-charcoal);
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--color-snow);
+      overflow-x: auto;
+      position: relative;
+      line-height: 1.6;
+    }
+
+    .code-box .copy-pill {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: var(--color-ash);
+      border: 1px solid var(--color-slate);
+      color: var(--color-silver-mist);
+      border-radius: var(--radius-buttons);
+      padding: 3px 12px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .code-box .copy-pill:hover {
+      color: var(--color-snow);
+      border-color: var(--color-graphite);
+    }
+
+    /* Таблица флагов */
+    .table-wrapper {
+      border: 1px solid var(--color-charcoal);
+      border-radius: var(--radius-cards);
+      overflow: hidden;
+      margin: 16px 0;
+      background: var(--color-obsidian);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    th {
+      background: var(--color-terminal-bg);
+      color: var(--color-snow);
+      font-weight: 500;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--color-charcoal);
+    }
+
+    td {
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--color-charcoal);
+      color: var(--color-silver-mist);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: var(--color-ash);
+    }
+
+    code {
+      font-family: var(--font-mono);
+      background-color: var(--color-ash);
+      border: 1px solid var(--color-charcoal);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: var(--color-snow);
+      letter-spacing: 0.05em;
+    }
+
+    /* Подсветка YAML */
+    .yk { color: var(--color-snow); font-weight: 500; }
+    .ys { color: var(--color-silver-mist); }
+    .yn { color: var(--color-phosphor-green); }
+    .yb { color: var(--color-mint-pulse); }
+    .yc { color: var(--color-smoke); font-style: italic; }
+
+    /* Информационная врезка */
+    .callout-box {
+      background: var(--color-obsidian);
+      border: 1px solid var(--color-charcoal);
+      border-left: 2px solid var(--color-phosphor-green);
+      border-radius: var(--radius-cards);
+      padding: 18px 20px;
+      margin: 20px 0;
+    }
+
+    .callout-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--color-snow);
+      margin-bottom: 4px;
+    }
+
+    .callout-box p {
+      font-size: 13px;
+      color: var(--color-silver-mist);
+      margin-bottom: 0;
+    }
+
+    /* Подвал сайта */
+    footer {
+      border-top: 1px solid var(--color-charcoal);
+      background: var(--color-obsidian);
+      padding: 28px 24px;
+      margin-top: auto;
+    }
+
+    .footer-inner {
+      max-width: var(--page-max-width);
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      font-size: 13px;
+      color: var(--color-smoke);
+    }
+
+    .footer-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--color-phosphor-green);
+      border-radius: 50%;
+    }
+
+    /* Адаптивность для мобильных экранов */
+    @media (max-width: 900px) {
+      .sidebar {
+        display: none;
+        position: fixed;
+        top: 64px;
+        left: 0;
+        width: 100%;
+        height: calc(100vh - 64px);
+        background: var(--color-obsidian);
+        z-index: 99;
+        border-right: none;
+      }
+
+      .sidebar.open {
+        display: block;
+      }
+
+      .menu-toggle {
+        display: block;
+      }
+
+      .content {
+        padding: 24px 16px;
+      }
+
+      .hero h1 {
+        font-size: 32px;
+      }
+
+      .feature-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Верхняя панель навигации -->
+  <header class="top-header">
+    <a href="#" class="brand-group">
+      <div class="brand-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+        </svg>
+      </div>
+      <span class="brand-title">netpulse</span>
+    </a>
+
+    <div class="nav-links">
+      <a href="#quickstart" class="nav-item">Документация</a>
+      <a href="#features" class="nav-item">Возможности</a>
+      <a href="#flags" class="nav-item">Справка CLI</a>
+      <a href="https://github.com" target="_blank" rel="noopener" class="pill-stars">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+        <span>GitHub</span>
+        <span style="color: var(--color-smoke);">2.4k</span>
+      </a>
+      <a href="#installation" class="btn-primary">Установить</a>
+      <button class="menu-toggle" id="menuToggle" aria-label="Открыть навигацию">☰</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Боковое меню -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-section-title">Обзор</div>
+      <ul class="sidebar-nav">
+        <li><a href="#overview" class="active">Введение</a></li>
+        <li><a href="#quickstart">Быстрый старт</a></li>
+        <li><a href="#features">Архитектура</a></li>
+      </ul>
+
+      <div class="sidebar-section-title">Справочник</div>
+      <ul class="sidebar-nav">
+        <li><a href="#installation">Установка</a></li>
+        <li><a href="#flags">Флаги CLI</a></li>
+        <li><a href="#config">Схема конфига</a></li>
+      </ul>
+
+      <div class="sidebar-section-title">Эксплуатация</div>
+      <ul class="sidebar-nav">
+        <li><a href="#troubleshooting">Диагностика</a></li>
+        <li><a href="#telemetry">Трейспоинты eBPF</a></li>
+      </ul>
+    </aside>
+
+    <!-- Основное содержимое -->
+    <main class="content">
+      <!-- Первый экран (Hero) -->
+      <section id="overview" class="hero">
+        <a href="#installation" class="announcement-pill">
+          <span class="dot"></span>
+          <span>Релиз v1.4.2 — добавлено профилирование сокетов через eBPF</span>
+          <span style="color: var(--color-smoke);">&rarr;</span>
+        </a>
+
+        <h1>
+          Сетевая телеметрия с нулевым оверхедом.<br>
+          <span class="highlight">Прямо из ядра Linux.</span>
+        </h1>
+
+        <p class="lead">
+          netpulse подключает легковесные eBPF-трейспоинты к сетевой подсистеме Linux, непрерывно транслируя пропускную способность сокетов и интерфейсов без нагрузки на центральный процессор.
+        </p>
+
+        <div class="hero-actions">
+          <a href="#quickstart" class="btn-primary">Начать работу</a>
+          <a href="https://github.com" target="_blank" rel="noopener" class="btn-ghost">Исходный код</a>
+        </div>
+
+        <div class="quick-install">
+          <div class="install-cmd">
+            <span class="prefix">$</span>curl -fsSL https://get.netpulse.io | sh
+          </div>
+          <button class="btn-copy" onclick="copySnippet('curl -fsSL https://get.netpulse.io | sh', this)">Копировать</button>
+        </div>
+      </section>
+
+      <!-- Интерактивный терминал -->
+      <section id="quickstart">
+        <h2>Поток телеметрии в реальном времени</h2>
+        <p>Прямой мониторинг физических сетевых карт и шифрованных оверлеев (WireGuard, Docker bridges) в лаконичном консольном интерфейсе.</p>
+
+        <div class="terminal-card">
+          <div class="terminal-header">
+            <div class="term-dots">
+              <span class="term-dot"></span>
+              <span class="term-dot"></span>
+              <span class="term-dot"></span>
+            </div>
+            <div class="terminal-title">netpulse top — узел: edge-node-01</div>
+          </div>
+          <div class="terminal-body"><span class="t-graphite">┌── ИНТЕРФЕЙС ─── СТАТУС ─── СКОРОСТЬ RX ─── СКОРОСТЬ TX ─── ПАКЕТЫ ───── ОШИБКИ/СБРОС ── ШЛЮЗ ────┐</span>
+│ <span class="t-snow">eth0</span>            UP 10G     <span class="t-green">48.24 MB/s</span>    <span class="t-snow">14.12 MB/s</span>    128.4k p/s   0 / 0       <span class="t-green">1.1ms</span>   │
+│ <span class="t-snow">wg0</span>             UP VIRT    <span class="t-green">8.71 MB/s</span>     <span class="t-snow">8.69 MB/s</span>     34.2k p/s    0 / 0       <span class="t-green">14.2ms</span>  │
+│ <span class="t-smoke">docker0</span>         UP BRDG    1.20 MB/s     0.18 MB/s      4.1k p/s    0 / 0       <span class="t-smoke">—</span>       │
+│ <span class="t-smoke">lo</span>              LOOPBACK   114.20 KB/s   114.20 KB/s    1.1k p/s    0 / 0       <span class="t-smoke">—</span>       │
+<span class="t-graphite">└── АКТИВНЫЕ СОКЕТЫ (НАИБОЛЬШАЯ ПРОПУСКНАЯ СПОСОБНОСТЬ) ───────────────────────────────────────────┘</span>
+  <span class="t-smoke">PID     ПРОЦЕСС       FD   ИСХОДЯЩИЙ АДРЕС     ЦЕЛЕВОЙ АДРЕС       ПРОТО   НАГРУЗКА</span>
+  29410   nginx-worker  4    192.168.1.10:443    104.21.72.1:58432   TCP     <span class="t-green">32.1 MB/s</span>
+  31104   envoy-ingress 12   0.0.0.0:8080        172.17.0.4:38910    TCP     <span class="t-green">11.4 MB/s</span>
+  44912   vector-agent  7    127.0.0.1:9000      10.0.0.5:9000       UDP     2.8 MB/s
+<span class="t-graphite">───────────────────────────────────────────────────────────────────────────────────────────────────</span>
+<span class="t-smoke">Сводка по узлу:</span> Прием (RX): <span class="t-green">58.15 MB/s</span> | Отдача (TX): 22.99 MB/s | Загрузка CPU: <span class="t-green">1.8%</span> | Память (RSS): <span class="t-green">14.2 MB</span></div>
+        </div>
+      </section>
+
+      <!-- Возможности (Сетка 2x2) -->
+      <section id="features">
+        <h2>Ключевые возможности</h2>
+        <p>Разработано для production-окружений, где предсказуемость потребления ресурсов и надежность критически важны.</p>
+
+        <div class="feature-grid">
+          <!-- Карточка 1 -->
+          <div class="feature-card">
+            <div class="feature-card-content">
+              <svg class="feature-card-icon" viewBox="0 0 24 24">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+              </svg>
+              <h4>Трейсинг сокетов через eBPF</h4>
+              <p>Перехватывает события TCP/UDP ядра без переключения контекста и задержек для хост-приложений.</p>
+            </div>
+            <div class="card-wireframe">
+              <svg class="wireframe-svg" viewBox="0 0 200 60">
+                <line x1="20" y1="30" x2="180" y2="30" />
+                <circle cx="50" cy="30" r="4" fill="#3ecf8e" />
+                <circle cx="100" cy="30" r="3" fill="#4d4d4d" />
+                <circle cx="150" cy="30" r="3" fill="#4d4d4d" />
+              </svg>
+            </div>
+          </div>
+
+          <!-- Карточка 2 -->
+          <div class="feature-card">
+            <div class="feature-card-content">
+              <svg class="feature-card-icon" viewBox="0 0 24 24">
+                <rect x="2" y="2" width="20" height="20" rx="4"></rect>
+                <path d="M7 12h10M12 7v10"></path>
+              </svg>
+              <h4>Бинарник без зависимостей</h4>
+              <p>Полностью статический исполняемый файл без привязки к glibc. Запускается на Alpine, NixOS и Ubuntu.</p>
+            </div>
+            <div class="card-wireframe">
+              <svg class="wireframe-svg" viewBox="0 0 200 60">
+                <rect x="70" y="15" width="60" height="30" rx="4" fill="none" />
+                <circle cx="100" cy="30" r="3" fill="#3ecf8e" />
+              </svg>
+            </div>
+          </div>
+
+          <!-- Карточка 3 -->
+          <div class="feature-card">
+            <div class="feature-card-content">
+              <svg class="feature-card-icon" viewBox="0 0 24 24">
+                <path d="M18 20V10M12 20V4M6 20v-6"></path>
+              </svg>
+              <h4>Нативный эндпоинт Prometheus</h4>
+              <p>Встроенный HTTP-сервер отдает метрики для сбора в Prometheus и визуализации в Grafana из коробки.</p>
+            </div>
+            <div class="card-wireframe">
+              <svg class="wireframe-svg" viewBox="0 0 200 60">
+                <line x1="30" y1="50" x2="60" y2="25" />
+                <line x1="60" y1="25" x2="110" y2="40" />
+                <line x1="110" y1="40" x2="170" y2="15" />
+                <circle cx="170" cy="15" r="3" fill="#3ecf8e" />
+              </svg>
+            </div>
+          </div>
+
+          <!-- Карточка 4 -->
+          <div class="feature-card">
+            <div class="feature-card-content">
+              <svg class="feature-card-icon" viewBox="0 0 24 24">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                <polyline points="22,6 12,13 2,6"></polyline>
+              </svg>
+              <h4>Потоковый вывод в NDJSON</h4>
+              <p>Перенаправляйте структурированные события в Vector, Fluentbit или собственные bash-скрипты.</p>
+            </div>
+            <div class="card-wireframe">
+              <svg class="wireframe-svg" viewBox="0 0 200 60">
+                <line x1="40" y1="20" x2="160" y2="20" stroke-dasharray="4" />
+                <line x1="40" y1="40" x2="130" y2="40" stroke-dasharray="4" />
+                <circle cx="140" cy="40" r="3" fill="#3ecf8e" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Установка -->
+      <section id="installation">
+        <h2>Установка</h2>
+        <p>Загрузите предсобранный бинарник или воспользуйтесь пакетным менеджером вашей ОС.</p>
+
+        <div class="tabs-card">
+          <div class="tabs-header">
+            <button class="tab-btn active" onclick="pickTab(event, 'tab-sh')">Shell (Linux)</button>
+            <button class="tab-btn" onclick="pickTab(event, 'tab-brew')">Homebrew</button>
+            <button class="tab-btn" onclick="pickTab(event, 'tab-aur')">Arch AUR</button>
+            <button class="tab-btn" onclick="pickTab(event, 'tab-docker')">Docker</button>
+          </div>
+
+          <div id="tab-sh" class="tab-content active">
+            <div class="code-box">
+              <button class="copy-pill" onclick="copySnippet('curl -fsSL https://get.netpulse.io | sudo sh', this)">Копировать</button>
+              <code># Загрузка и проверка контрольной суммы бинарника в /usr/local/bin<br>curl -fsSL https://get.netpulse.io | sudo sh</code>
+            </div>
+          </div>
+
+          <div id="tab-brew" class="tab-content">
+            <div class="code-box">
+              <button class="copy-pill" onclick="copySnippet('brew install netpulse/tap/netpulse', this)">Копировать</button>
+              <code>brew tap netpulse/tap<br>brew install netpulse</code>
+            </div>
+          </div>
+
+          <div id="tab-aur" class="tab-content">
+            <div class="code-box">
+              <button class="copy-pill" onclick="copySnippet('yay -S netpulse-bin', this)">Копировать</button>
+              <code>yay -S netpulse-bin</code>
+            </div>
+          </div>
+
+          <div id="tab-docker" class="tab-content">
+            <div class="code-box">
+              <button class="copy-pill" onclick="copySnippet('docker run --rm -it --net=host --cap-add=NET_ADMIN ghcr.io/netpulse/netpulse:latest', this)">Копировать</button>
+              <code>docker run --rm -it --net=host --cap-add=NET_ADMIN ghcr.io/netpulse/netpulse:latest</code>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout-box">
+          <div class="callout-title">Привилегии ядра Linux</div>
+          <p>Для трейсинга сетевых событий через eBPF требуются права <code>CAP_NET_ADMIN</code> либо запуск через <code>sudo</code>. Базовая статистика сетевых карт работает от непривилегированного пользователя.</p>
+        </div>
+      </section>
+
+      <!-- Параметры командной строки -->
+      <section id="flags">
+        <h2>Параметры запуска (CLI)</h2>
+        <p>netpulse работает как в интерактивном режиме терминала, так и в виде фонового демона.</p>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Параметр</th>
+                <th>По умолчанию</th>
+                <th>Описание</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>-i, --interface</code></td>
+                <td><code>all</code></td>
+                <td>Выбор конкретного сетевого интерфейса (например, <code>eth0</code>, <code>wg0</code>).</td>
+              </tr>
+              <tr>
+                <td><code>-w, --interval</code></td>
+                <td><code>1s</code></td>
+                <td>Периодичность опроса и агрегации телеметрии.</td>
+              </tr>
+              <tr>
+                <td><code>-f, --format</code></td>
+                <td><code>interactive</code></td>
+                <td>Формат вывода данных: <code>interactive</code>, <code>json</code> или <code>csv</code>.</td>
+              </tr>
+              <tr>
+                <td><code>--prom-port</code></td>
+                <td><code>отключен</code></td>
+                <td>TCP-порт для встроенного Prometheus HTTP-эндпоинта (например, <code>9102</code>).</td>
+              </tr>
+              <tr>
+                <td><code>-s, --sockets</code></td>
+                <td><code>true</code></td>
+                <td>Включение модуля eBPF для привязки трафика к процессам и сокетам.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Конфигурация YAML -->
+      <section id="config">
+        <h2>Файл конфигурации</h2>
+        <p>Постоянные параметры сервиса указываются в <code>~/.config/netpulse/config.yaml</code>.</p>
+
+        <div class="code-box">
+          <button class="copy-pill" onclick="copyConfigBlock(this)">Копировать YAML</button>
+<pre><span class="yc"># Параметры демона netpulse</span>
+<span class="yk">version:</span> <span class="yn">1</span>
+
+<span class="yk">collector:</span>
+  <span class="yk">interval:</span> <span class="ys">"1s"</span>
+  <span class="yk">interfaces:</span>
+    - <span class="ys">"eth0"</span>
+    - <span class="ys">"wg0"</span>
+  <span class="yk">enable_ebpf_sockets:</span> <span class="yb">true</span>
+
+<span class="yk">exporter:</span>
+  <span class="yk">prometheus:</span>
+    <span class="yk">enabled:</span> <span class="yb">true</span>
+    <span class="yk">listen_addr:</span> <span class="ys">"127.0.0.1:9102"</span>
+    <span class="yk">metrics_path:</span> <span class="ys">"/metrics"</span></pre>
+        </div>
+      </section>
+
+      <!-- Диагностика -->
+      <section id="troubleshooting">
+        <h2>Диагностика и решение проблем</h2>
+        <h3>Ошибка доступа к BPF-трейспоинтам (Permission denied)</h3>
+        <p>Если при старте возникает ошибка загрузки BPF-объектов, назначьте права на исполняемый файл без полного root-доступа:</p>
+        <div class="code-box">
+          <code>sudo setcap cap_net_admin,cap_net_raw+ep /usr/local/bin/netpulse</code>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Подвал сайта -->
+  <footer>
+    <div class="footer-inner">
+      <div>
+        Распространяется под лицензией <strong>MIT</strong>. &copy; 2026 Разработчики netpulse.
+      </div>
+      <div class="footer-status">
+        <span class="pulse-dot"></span>
+        <span>Сборщик метрик ядра: <strong>Работает штатно</strong></span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Копирование команд в буфер обмена
+    function copySnippet(text, btn) {
+      navigator.clipboard.writeText(text).then(() => {
+        const prev = btn.innerText;
+        btn.innerText = 'Скопировано';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.innerText = prev;
+          btn.classList.remove('copied');
+        }, 1500);
+      });
+    }
+
+    // Копирование блока конфигурации YAML
+    function copyConfigBlock(btn) {
+      const cfg = `# Параметры демона netpulse
+version: 1
+
+collector:
+  interval: "1s"
+  interfaces:
+    - "eth0"
+    - "wg0"
+  enable_ebpf_sockets: true
+
+exporter:
+  prometheus:
+    enabled: true
+    listen_addr: "127.0.0.1:9102"
+    metrics_path: "/metrics"`;
+      copySnippet(cfg, btn);
+    }
+
+    // Переключение табов установки
+    function pickTab(evt, tabId) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      evt.currentTarget.classList.add('active');
+      const target = document.getElementById(tabId);
+      if (target) target.classList.add('active');
+    }
+
+    // Мобильное меню навигации
+    const toggle = document.getElementById('menuToggle');
+    const bar = document.getElementById('sidebar');
+    if (toggle && bar) {
+      toggle.addEventListener('click', () => bar.classList.toggle('open'));
+      bar.querySelectorAll('a').forEach(a => {
+        a.addEventListener('click', () => {
+          if (window.innerWidth <= 900) bar.classList.remove('open');
+        });
+      });
+    }
+
+    // Подсветка активного пункта меню при скролле
+    window.addEventListener('scroll', () => {
+      const sections = document.querySelectorAll('section');
+      const links = document.querySelectorAll('.sidebar-nav a');
+      let cur = '';
+      sections.forEach(s => {
+        if (window.pageYOffset >= s.offsetTop - 120) {
+          cur = s.getAttribute('id');
+        }
+      });
+      links.forEach(l => {
+        l.classList.remove('active');
+        if (l.getAttribute('href') === '#' + cur) {
+          l.classList.add('active');
+        }
+      });
+    });
+  </script>
+</body>
+</html>
