@@ -3,6 +3,7 @@ import sys
 from system import get_system_info
 from modules.installer import NodeInstaller
 from domain import clear
+from modules.update_manager import Update_manager
 
 
 
@@ -44,10 +45,9 @@ def main_menu():
         print(" [1] Install Remnawave Node")
         print(" [2] Configure protocols")
         print(" [3] Configure Nginx")
-        print(" [4] Manage placeholder")
-        print(" [5] Service diagnostics")
-        print(" [6] Update components")
-        print(" [7] Uninstall")
+        print(" [4] Configure Docker")
+        print(" [5] Update components")
+        print(" [6] Uninstall")
 
         print("\n [0] Exit")
 
@@ -66,15 +66,13 @@ def main_menu():
             print("\n Nginx configuration is not implemented yet.")
 
         elif choice == "4":
-            print("\n Placeholder manager is not implemented yet.")
+            print("\n Configure Docker is not implemented yet.")
 
         elif choice == "5":
-            print("\n Diagnostics are not implemented yet.")
+            updater = Update_manager()
+            updater.update()
 
         elif choice == "6":
-            print("\n Update manager is not implemented yet.")
-
-        elif choice == "7":
             print("\n Uninstaller is not implemented yet.")
 
         elif choice == "0":

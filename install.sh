@@ -77,5 +77,4 @@ echo
 echo "Install to /opt/rnd"
 echo "Create .env"
 echo "Run: rnd"
-echo "Update: bash install.sh"
 echo
